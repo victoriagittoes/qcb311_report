@@ -1,5 +1,5 @@
 # MONOCLE
-# proper installation
+# install if not already installed
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install(version = "3.20")
@@ -23,7 +23,7 @@ library(tidyr)
 library(readr)
 library(patchwork)
 
-# Set up data
+# 0. Set up data
 pathname <- '/Users/victoriagittoes/Documents/Princeton/Y3 Spring 25/QCB311/final_project/GSE75748_sc_time_course_ec.csv.gz'
 sc_time_data <- read.csv(pathname)
 data <- sc_time_data
@@ -56,13 +56,12 @@ cds <- new_cell_data_set(expression_matrix,
                          gene_metadata = gene_metadata)
 
 
-# MONOCLE TUTORIAL
+# 1. MONOCLE TUTORIAL
 ## Step 1: Normalize and pre-process the data
 cds <- preprocess_cds(cds, num_dim = 100)
 ## Step 2: Remove batch effects with cell alignment
 #cds <- align_cds(cds, alignment_group = "batch")
 ## Step 3: Reduce the dimensions using UMAP
-# UMAP was not an
 cds <- reduce_dimension(cds, reduction_method = 'UMAP')
 plot_cells(cds, color_cells_by = "Time", cell_size = 1)
 ## Step 4: Cluster the cells
@@ -84,14 +83,14 @@ pr_test_res <- graph_test(cds,  neighbor_graph="principal_graph", cores=4)
 pr_deg_ids <- row.names(subset(pr_test_res, q_value < 0.05))
 
 
-# PCA PLOTS
+# 2. PCA PLOTS
 cds <- preprocess_cds(cds, num_dim = 100, method = "PCA")
 # Extract PCA coordinates
 pca_coords <- reducedDims(cds)$PCA
 pca_df <- as.data.frame(pca_coords)
 pca_df$Time <- colData(cds)$Time
 
-# Define your time colors
+# Define time colors to match those in paper
 time_colors <- c(
   "00h" = "black",
   "12h" = "red",
@@ -101,7 +100,7 @@ time_colors <- c(
   "96h" = "#984ea3"
 )
 
-# Plot PC1 vs PC2 with custom time colors
+# Plot PC1 vs PC2 (to compare with paper's PCA)
 ggplot(pca_df, aes(x = PC1, y = PC2, fill = Time)) +
   geom_point(shape = 21, size = 2.5, color = "black", stroke = 0.3, alpha = 0.9) +
   scale_fill_manual(values = time_colors) +
@@ -116,39 +115,34 @@ ggplot(pca_df, aes(x = PC1, y = PC2, fill = Time)) +
 
 
 
-# DEFAULT PSEUDOTIME
+# 3. DEFAULT PSEUDOTIME
 # these plots not used in final report
-library(ggplot2)
 
-# Define time colors
-time_colors <- c("00h" = "#984ea3",  # purple
+# Define time colors again, just to reiterate
+time_colors <- c("00h" = "#984ea3",
                  "12h" = "lightblue",
                  "24h" = "darkblue",
                  "36h" = "darkgreen",
                  "72h" = "red",
                  "96h" = "black")
 
-# Extract gene IDs
+# Genes of interest
 genes_of_interest <- c("POU5F1", "T", "SOX17", "CXCR4") # CHANGE ACCORDINGLY
 gene_ids <- rownames(subset(rowData(cds), gene_short_name %in% genes_of_interest))
 
-# Generate plot and apply custom colors
+# Generate pseudotime plot
 p <- plot_genes_in_pseudotime(cds[gene_ids, ],
                               min_expr = 0.5,
                               color_cells_by = "Time") +
   scale_color_manual(values = time_colors)
-
 print(p)
 
 
-# PSEUDOTIME PER TIME POINT
+# 4. PSEUDOTIME PER TIME POINT
 # these plots not used in final report
 cds <- logNormCounts(cds)
-library(monocle3)
-library(ggplot2)
-library(patchwork)  # for combining plots
 
-# Define time colors
+# Define time colors again, just to reiterate
 time_colors <- c(
   "00h" = "black",
   "12h" = "red",
@@ -158,7 +152,7 @@ time_colors <- c(
   "96h" = "#984ea3"
 )
 
-# genes of interest
+# Genes of interest
 genes_of_interest <- c("POU5F1", "T", "SOX17", "CXCR4")
 
 # Function to plot gene expression in pseudotime for each time point
@@ -168,10 +162,8 @@ plot_pseudotime_by_timepoint <- function(cds, genes, time_colors) {
   
   for (tp in names(time_colors)) {
     message("Processing time point: ", tp)
-    
     cds_tp <- cds[, colData(cds)$Time == tp]
-    
-    if (ncol(cds_tp) == 0) next  # Skip if no cells for this time point
+    if (ncol(cds_tp) == 0) next
     
     # Preprocess the subset
     cds_tp <- preprocess_cds(cds_tp, num_dim = 50)
@@ -190,7 +182,6 @@ plot_pseudotime_by_timepoint <- function(cds, genes, time_colors) {
     
     plots[[tp]] <- p
   }
-  
   return(plots)
 }
 
@@ -199,13 +190,10 @@ pseudotime_plots <- plot_pseudotime_by_timepoint(cds, genes_of_interest, time_co
 wrap_plots(pseudotime_plots, ncol = 6)
 
 
-# PSEUDOTIME. COMBINE TIME POINTS
+# 5. PSEUDOTIME. COMBINE TIME POINTS
 # these plots used in final report
-library(monocle3)
-library(dplyr)
-library(ggplot2)
 
-# redefine colors (no change, just want to put in this section too)
+# Define time colors again, just to reiterate
 time_colors <- c(
   "00h" = "black",
   "12h" = "red",
@@ -215,6 +203,7 @@ time_colors <- c(
   "96h" = "#984ea3"
 )
 
+# Function to plot genes by time point, and combine into a singular plot for gene of interest
 plot_genes_pseudotime_by_segment <- function(cds, genes_of_interest, time_colors) {
   gene_ids <- rownames(subset(rowData(cds), gene_short_name %in% genes_of_interest))
   
@@ -296,7 +285,7 @@ print(plots_by_gene[["SOX17"]])
 
 
 
-# VIOLIN PLOTS OF EXPRESSION
+# 6. VIOLIN PLOTS OF EXPRESSION
 
 # update genes of interest for violin plots
 # to match paper's violin plots
@@ -335,34 +324,3 @@ plot_genes_violin(subset_cds,
     axis.title = element_text(size = 14),                 # Bigger axis titles
     strip.text = element_text(size = 18, face = "italic") # Bigger italic gene titles
   )
-
-
-# TEST
-# Convert your CDS to a data frame for custom plotting
-plot_data <- as.data.frame(colData(cds))
-plot_data$Pseudotime <- pseudotime(cds)
-plot_data$GeneExpression <- as.numeric(SummarizedExperiment::assay(cds, "counts")["POU5F1", ])
-
-# Ensure Time is a factor in correct order
-plot_data$Time <- factor(plot_data$Time, levels = c("00h", "12h", "24h", "36h", "72h", "96h"))
-
-# Define your custom time colors
-time_colors <- c(
-  "00h" = "#984ea3",
-  "12h" = "lightblue",
-  "24h" = "darkblue",
-  "36h" = "darkgreen",
-  "72h" = "red",
-  "96h" = "black"
-)
-
-# Plot using ggplot2
-library(ggplot2)
-
-ggplot(plot_data, aes(x = Pseudotime, y = GeneExpression, color = Time)) +
-  geom_point(size = 1) +
-  scale_y_log10() +
-  scale_color_manual(values = time_colors) +
-  labs(title = "POU5F1 expression over pseudotime", y = "Expression (log10)", x = "Pseudotime") +
-  theme_minimal()
-
