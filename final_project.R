@@ -27,31 +27,7 @@ library(pheatmap)
 pathname <- '/Users/victoriagittoes/Documents/Princeton/Y3 Spring 25/QCB311/final_project/GSE75748_sc_cell_type_ec.csv.gz'
 sc_cell_type_data <- read.csv(pathname)
 
-# unnecessary for analysis. 
-# test to ensure sizes for each cell match what is said in paper
-# separate into dfs for each cell type
-
-# CONTROLS: H1, H9, HFF
-# H1 (212)
-h1_df <- sc_cell_type_data[, grepl("^H1", names(sc_cell_type_data))]
-# H9 (162)
-h9_df <- sc_cell_type_data[, grepl("^H9", names(sc_cell_type_data))]
-# HFF (159)
-hff_df <- sc_cell_type_data[, grepl("^HFF", names(sc_cell_type_data))]
-
-# EXPERIMENTALS: NPC, DEC, EC, TB
-# NPC (173)
-npc_df <- sc_cell_type_data[, grepl("^NPC", names(sc_cell_type_data))]
-# DEC (138)
-dec_df <- sc_cell_type_data[, grepl("^DE", names(sc_cell_type_data))]
-# EC (105)
-ec_df <- sc_cell_type_data[, grepl("^EC", names(sc_cell_type_data))]
-# TB (69)
-tb_df <- sc_cell_type_data[, grepl("^TB", names(sc_cell_type_data))]
-
-
-
-# 0. set up correct formatting & create Seurat Object
+# set up correct formatting & create Seurat Object
 # Drop gene names column and set as rownames
 rownames(sc_cell_type_data) <- sc_cell_type_data[[1]]
 sc_cell_type_data <- sc_cell_type_data[, -1]  # Remove gene name column from data
