@@ -1,16 +1,15 @@
 # Victoria Gittoes
-# 23 April 2025
+# 09 May 2025
 
 # Paper: Single-cell RNA-seq reveals novel regulators of human embryonic stem 
 # cell differentiation to definitive endoderm
-# Authors: Chu, Li-Fang., et al.
+# Authors: Chu et al.
 # Date Published: 17 August 2016
 
 # GOAL: DEFINE THE DEC SIGNATURE
 
 
-# dot plot matrix
-
+# packages needed for this script
 library(dplyr)
 library(readxl)
 library(openxlsx)
@@ -24,8 +23,7 @@ library(patchwork)
 library(GGally)
 library(pheatmap)
 
-# Open scRNAseq data
-
+# 0. set up scRNA-seq data
 pathname <- '/Users/victoriagittoes/Documents/Princeton/Y3 Spring 25/QCB311/final_project/GSE75748_sc_cell_type_ec.csv.gz'
 sc_cell_type_data <- read.csv(pathname)
 
@@ -51,8 +49,9 @@ ec_df <- sc_cell_type_data[, grepl("^EC", names(sc_cell_type_data))]
 # TB (69)
 tb_df <- sc_cell_type_data[, grepl("^TB", names(sc_cell_type_data))]
 
-# 0. set up correct formatting & create Seurate Object
 
+
+# 0. set up correct formatting & create Seurat Object
 # Drop gene names column and set as rownames
 rownames(sc_cell_type_data) <- sc_cell_type_data[[1]]
 sc_cell_type_data <- sc_cell_type_data[, -1]  # Remove gene name column from data
@@ -109,21 +108,6 @@ sc_data_all <- subset(sc_data_all, subset = nFeature_RNA > 7000 & nFeature_RNA <
 sc_norm <- NormalizeData(sc_data)
 sc_all_norm <- NormalizeData(sc_data_all)
 
-# identify highly variable features
-sc_norm <- FindVariableFeatures(sc_norm, selection.method = "vst", nfeatures = 2000)
-sc_all_norm <- FindVariableFeatures(sc_all_norm, selection.method = "vst", nfeatures = 2000)
-
-
-# Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(sc_norm), 10)
-  ## "GABRP","ALDH1A1","CER1","LPL","HAPLN1","TNFRSF11B","ERBB4","THBS1","ACTC1","TFPI"     
-
-# plot variable features with and without labels
-plot1 <- VariableFeaturePlot(sc_norm)
-plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-plot1 + plot2
-
-
 # scale the data
 all.genes <- rownames(sc_norm)
 sc_norm <- ScaleData(sc_norm, features = all.genes)
@@ -135,6 +119,7 @@ sc_all_norm <- ScaleData(sc_all_norm, features = all.genes)
 
 # 3. PCA Analysis
 
+# colors to match those used in paper
 cell_colors <- c(
   "H1" = "black",
   "H9" = "orange",
@@ -205,7 +190,7 @@ my_custom_geom <- function(data, mapping, ...) {
     scale_color_manual(values = cell_colors) +
     theme_classic()
 }
-# Plot using ggpairs
+# plot
 ggpairs(
   pca_df,
   columns = 1:7,
@@ -228,6 +213,8 @@ ElbowPlot(sc_norm)
   # elbow at PC = 6
   # H1 and H9 were very similar
 
+
+
 # 4. UMAP
 
 # clustering
@@ -246,17 +233,17 @@ cell_colors <- c(
   "HFF" = "red",
   "TB" = "grey"
 )
-# Plot UMAP with hollow circles and custom colors
+# plot
 p <- DimPlot(sc_norm, reduction = "umap", group.by = "orig.ident", pt.size = 3) + 
   scale_color_manual(values = cell_colors) +   # Apply cell colors
   theme_classic() + 
   theme(
-    axis.title = element_text(size = 14, face = "bold"),  # Bold axis titles
-    axis.line = element_line(size = 1),  # Thicker axis lines
-    legend.title = element_text(size = 12),  # Adjust legend title size
-    legend.text = element_text(size = 10)   # Adjust legend text size
+    axis.title = element_text(size = 14, face = "bold"),  
+    axis.line = element_line(size = 1),  
+    legend.title = element_text(size = 12),  
+    legend.text = element_text(size = 10)  
   )
-# Modify the plot to make points hollow with colored borders
+# characterisitcs of plot to match the paper
 p$layers[[1]]$aes_params$shape <- 21   # Hollow circle
 p$layers[[1]]$aes_params$stroke <- 1.5  # Border thickness
 p$layers[[1]]$aes_params$fill <- "white"  # Transparent inside
@@ -266,52 +253,6 @@ p
 
 
 # 5. Hierarchical clustering analysis
-# 4. Hierarchical clustering analysis
-de_exp <- de_umap
-Idents(de_exp) <- "Time"
-cluster36.markers <- FindMarkers(de_exp, ident.1 = "36h")
-cluster72.markers <- FindMarkers(de_exp, ident.1 = "72h")
-cluster96.markers <- FindMarkers(de_exp, ident.1 = "96h")
-
-head(cluster36.markers, n = 5)
-head(cluster72.markers, n = 5)
-head(cluster96.markers, n = 5)
-
-# 
-# Combine top DE genes from each time point
-top_genes_36 <- rownames(cluster36.markers)[1:20]
-top_genes_72 <- rownames(cluster72.markers)[1:20]
-top_genes_96 <- rownames(cluster96.markers)[1:20]
-
-# Union of top DE genes
-top_genes_all <- unique(c(top_genes_36, top_genes_72, top_genes_96))
-
-# Get scaled expression for these genes
-heatmap_data <- ScaleData(de_exp, features = top_genes_all)
-heatmap_matrix <- GetAssayData(heatmap_data, slot = "scale.data")[top_genes_all, ]
-
-# Load heatmap library
-library(pheatmap)
-
-# Optional: create annotation for columns (cells)
-annotation_col <- data.frame(Time = Idents(de_exp))
-rownames(annotation_col) <- colnames(heatmap_matrix)
-
-# Plot
-pheatmap(
-  heatmap_matrix,
-  cluster_rows = TRUE,        # hierarchical clustering of genes
-  cluster_cols = TRUE,        # hierarchical clustering of cells
-  annotation_col = annotation_col,
-  scale = "row",
-  fontsize_row = 6,
-  show_colnames = FALSE
-)
-
-
-
-
-
 sc_exp <- sc_norm
 Idents(sc_exp) <- "orig.ident"
 clusterDEC.markers <- FindMarkers(sc_exp, ident.1 = "DEC")
@@ -322,8 +263,6 @@ clusterNPC.markers <- FindMarkers(sc_exp, ident.1 = "NPC")
 clusterEC.markers <- FindMarkers(sc_exp, ident.1 = "EC")
 clusterTB.markers <- FindMarkers(sc_exp, ident.1 = "TB")
 
-clusterDECcompare.markers <- FindMarkers(sc_exp, ident.1 = "DEC", ident.2 = c("H1", "H9", "HFF",
-                                                                              "NPC", "EC", "TB"))
 head(clusterDEC.markers, n = 5)
 head(clusterDECcompare.markers, n = 5)
 head(clusterH1.markers, n = 5)
@@ -370,7 +309,7 @@ ordered_heatmap_matrix <- heatmap_matrix[, ordered_cells]
 ordered_annotation_col <- annotation_col[ordered_cells, , drop = FALSE]
 
 
-# Define cell type colors
+# Define cell type colors, same as earlier
 cell_colors <- c(
   "H1" = "black",
   "H9" = "orange",
@@ -384,18 +323,18 @@ annotation_colors <- list(orig.ident = cell_colors)
 
 # Define the custom color palette
 custom_colors <- colorRampPalette(c(
-  "black",         # very low
-  "purple4",    # low
-  "purple",        # midpoint (zero)
-  "yellow",        # moderate
-  "orange",        # high
-  "red"            # very high
+  "black",         # low
+  "purple4",       
+  "purple",        
+  "yellow",         
+  "orange",        
+  "red"            # high
 ))(100)
 
 # modify label (gene) names to be bigger and italix
 italic_genes <- rownames(ordered_heatmap_matrix)
 
-# Plot heatmap with custom colors
+# Plot heatmap
 pheatmap(
   ordered_heatmap_matrix,
   cluster_rows = TRUE,
@@ -412,7 +351,7 @@ pheatmap(
 
 
 
-# Supplementary Figures
+# 6. Supplementary Figures
 # Compare expression levels of DEC markers I found v. found in paper
 
 # features listed in paper
@@ -438,18 +377,3 @@ sc_exp.markers %>%
   ungroup() -> top10
 DoHeatmap(sc_exp, features = top10$gene) + NoLegend()
 
-
-
-# PAPER DID THIS, I ATTEMPTED IT, NOT INCLUDED IN FINAL REPORT
-# 5. Allez Enrichment Analysis
-
-new.cluster.ids <- c("H1/H9", "HFF", "NPC", "DEC", "EC", "TB")
-names(new.cluster.ids) <- levels(sc_norm)
-sc_norm <- RenameIdents(sc_norm, new.cluster.ids)
-DimPlot(sc_norm, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
-
-library(ggplot2)
-plot <- DimPlot(sc_norm, reduction = "umap", label = TRUE, label.size = 4.5) + xlab("UMAP 1") + ylab("UMAP 2") +
-  theme(axis.title = element_text(size = 18), legend.text = element_text(size = 18)) + guides(colour = guide_legend(override.aes = list(size = 10)))
-plot
-ggsave(filename = "../output/images/pbmc3k_umap.jpg", height = 7, width = 12, plot = plot, quality = 50)
